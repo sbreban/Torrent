@@ -73,7 +73,9 @@ public class TorrentNode {
           outputStream.close();
         } else if (message.getType().equals(Message.Type.REPLICATE_REQUEST)) {
           logger.info(client + " Replicate request");
-          Message responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes);
+          lock.lock();
+          Message responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes, localFiles);
+          lock.unlock();
           OutputStream outputStream = client.getOutputStream();
           byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
           outputStream.write(responseMessageSize);
