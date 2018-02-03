@@ -1,9 +1,8 @@
 package node;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
+import handlers.UploadRequestHandler;
+
+import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -40,7 +39,7 @@ public class TorrentNode {
     while (true) {
       Socket client = this.server.accept();
       String clientAddress = client.getInetAddress().getHostAddress();
-      System.out.println("New connection from " + clientAddress);
+      logger.info("New connection from " + clientAddress);
       executor.submit(() -> handleClient(client));
 
     }
@@ -54,12 +53,20 @@ public class TorrentNode {
       ByteBuffer wrapped = ByteBuffer.wrap(size); // big-endian by default
       int messageSize = wrapped.getInt();
       byte[] buffer = new byte[messageSize];
-      System.out.println(messageSize + " " + read);
+      logger.info(client + " " + messageSize + " " + read);
       read = clientInputStream.read(buffer, 0, messageSize);
       if (read == messageSize) {
         Message message = Message.parseFrom(buffer);
-        System.out.println(message.toString());
-
+        logger.info(client + " " + message.toString());
+        if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
+          logger.info(client + " Upload request");
+          Message responseMessage = UploadRequestHandler.handleUploadRequest(message);
+          OutputStream outputStream = client.getOutputStream();
+          byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
+          outputStream.write(responseMessageSize);
+          outputStream.write(responseMessage.toByteArray());
+          outputStream.close();
+        }
       }
     } catch (IOException e) {
       logger.log(Level.SEVERE, e.getMessage());
@@ -123,7 +130,7 @@ public class TorrentNode {
       otherNodes.remove(currentConfiguration);
       TorrentNode app = new TorrentNode(currentConfiguration, otherNodes);
 
-      System.out.println("Running Server: " +
+      logger.info("Running Server: " +
           "Host=" + app.getSocketAddress().getHostAddress() +
           " Port=" + app.getPort());
 
