@@ -1,10 +1,7 @@
 package node;
 
 import com.google.protobuf.ByteString;
-import handlers.ChunkRequestHandler;
-import handlers.LocalSearchRequestHandler;
-import handlers.ReplicateRequestHandler;
-import handlers.UploadRequestHandler;
+import handlers.*;
 import util.MessageUtil;
 
 import java.io.*;
@@ -34,6 +31,7 @@ public class TorrentNode {
   private static final String ipSuffixesKey = "ip-suffixes";
   private static final String portOffsetsKey = "port-offsets";
 
+  private NodeConfiguration localNode;
   private List<NodeConfiguration> otherNodes;
   private Map<ByteString, List<byte[]>> localFiles;
   private Map<String, ByteString> fileNameToHash;
@@ -42,6 +40,7 @@ public class TorrentNode {
   private ReentrantLock lock = new ReentrantLock();
 
   public TorrentNode(NodeConfiguration nodeConfiguration, List<NodeConfiguration> otherNodes) throws Exception {
+    this.localNode = nodeConfiguration;
     this.server = new ServerSocket(nodeConfiguration.getPort(), 1, InetAddress.getByName(nodeConfiguration.getAddr()));
     this.otherNodes = otherNodes;
     this.localFiles = new HashMap<>();
@@ -70,9 +69,12 @@ public class TorrentNode {
           Message responseMessage = LocalSearchRequestHandler.handleLocalSearchRequest(message, localFiles, fileNameToHash);
           lock.unlock();
           sendResponse(client, responseMessage);
-        } if (message.getType().equals(Message.Type.SEARCH_REQUEST)) {
+        } else if (message.getType().equals(Message.Type.SEARCH_REQUEST)) {
           logger.info(client + " Search request");
-
+          lock.lock();
+          Message responseMessage = SearchRequestHandler.handleSearchRequest(message, localNode, otherNodes, localFiles, fileNameToHash);
+          lock.unlock();
+          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
           logger.info(client + " Upload request");
           lock.lock();
