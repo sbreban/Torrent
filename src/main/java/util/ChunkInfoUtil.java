@@ -62,4 +62,26 @@ public class ChunkInfoUtil {
     return chunkInfos;
   }
 
+  public static List<ChunkInfo> getChunkInfos(List<byte[]> fileContent) throws NoSuchAlgorithmException {
+    MessageDigest md = MessageDigest.getInstance("MD5");
+    byte[] digest;
+    List<ChunkInfo> chunkInfos = new ArrayList<>();
+
+    for (int i = 0; i < fileContent.size(); i++) {
+      byte[] content = fileContent.get(i);
+      md.update(content);
+      digest = md.digest();
+
+      ChunkInfo chunkInfo = ChunkInfo.newBuilder().
+          setIndex(i).
+          setSize(content.length).
+          setHash(ByteString.copyFrom(digest)).
+          build();
+      logger.fine("Chunk " + chunkInfo.toString());
+      chunkInfos.add(chunkInfo);
+    }
+
+    return chunkInfos;
+  }
+
 }

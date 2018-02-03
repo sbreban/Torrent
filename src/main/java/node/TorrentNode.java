@@ -2,6 +2,7 @@ package node;
 
 import com.google.protobuf.ByteString;
 import handlers.ChunkRequestHandler;
+import handlers.LocalSearchRequestHandler;
 import handlers.ReplicateRequestHandler;
 import handlers.UploadRequestHandler;
 import util.MessageUtil;
@@ -65,7 +66,10 @@ public class TorrentNode {
         logger.fine(client + " " + message.toString());
         if (message.getType().equals(Message.Type.LOCAL_SEARCH_REQUEST)) {
           logger.info(client + " Local search request");
-
+          lock.lock();
+          Message responseMessage = LocalSearchRequestHandler.handleLocalSearchRequest(message, localFiles, fileNameToHash);
+          lock.unlock();
+          sendResponse(client, responseMessage);
         } if (message.getType().equals(Message.Type.SEARCH_REQUEST)) {
           logger.info(client + " Search request");
 
