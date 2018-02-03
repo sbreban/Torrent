@@ -4,11 +4,11 @@ import com.google.protobuf.ByteString;
 import node.*;
 import util.ChunkInfoUtil;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,27 +16,23 @@ public class UploadRequestHandler {
 
   private static final Logger logger = Logger.getLogger(UploadRequestHandler.class.getName());
 
-  public static Message handleUploadRequest(Message message) {
+  public static Message handleUploadRequest(Message message, Map<ByteString, List<byte[]>> localFiles) {
     Message responseMessage = null;
     try {
       UploadRequest uploadRequest = message.getUploadRequest();
       String fileName = uploadRequest.getFilename();
       ByteString data = uploadRequest.getData();
       byte[] bytes = data.toByteArray();
-      try (FileOutputStream fileOutputStream = new FileOutputStream(fileName)) {
-        fileOutputStream.write(bytes);
-      } catch (IOException e) {
-        logger.log(Level.SEVERE, e.getMessage());
-      }
 
       MessageDigest md = MessageDigest.getInstance("MD5");
       byte[] digest;
-
-      List<ChunkInfo> chunkInfos = ChunkInfoUtil.getChunkInfos(bytes, md);
-      Status status = Status.SUCCESS;
-
       md.update(bytes);
       digest = md.digest();
+      List<byte[]> fileContent = new LinkedList<>();
+      localFiles.put(ByteString.copyFrom(digest), fileContent);
+
+      List<ChunkInfo> chunkInfos = ChunkInfoUtil.getChunkInfos(bytes, fileContent);
+      Status status = Status.SUCCESS;
 
       FileInfo fileInfo = FileInfo.newBuilder().
           setHash(ByteString.copyFrom(digest)).

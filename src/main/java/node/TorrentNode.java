@@ -1,6 +1,10 @@
 package node;
 
+import com.google.protobuf.ByteString;
+import handlers.ChunkRequestHandler;
+import handlers.ReplicateRequestHandler;
 import handlers.UploadRequestHandler;
+import util.MessageUtil;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -8,9 +12,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,12 +34,15 @@ public class TorrentNode {
   private static final String portOffsetsKey = "port-offsets";
 
   private List<NodeConfiguration> otherNodes;
+  private Map<ByteString, List<byte[]>> localFiles;
 
   private ExecutorService executor = Executors.newFixedThreadPool(5);
+  private ReentrantLock lock = new ReentrantLock();
 
   public TorrentNode(NodeConfiguration nodeConfiguration, List<NodeConfiguration> otherNodes) throws Exception {
     this.server = new ServerSocket(nodeConfiguration.getPort(), 1, InetAddress.getByName(nodeConfiguration.getAddr()));
     this.otherNodes = otherNodes;
+    this.localFiles = new HashMap<>();
   }
 
   private void listen() throws Exception {
@@ -47,20 +57,31 @@ public class TorrentNode {
 
   private void handleClient(Socket client) {
     try {
-      byte[] size = new byte[4];
-      InputStream clientInputStream = client.getInputStream();
-      int read = clientInputStream.read(size, 0, 4);
-      ByteBuffer wrapped = ByteBuffer.wrap(size); // big-endian by default
-      int messageSize = wrapped.getInt();
-      byte[] buffer = new byte[messageSize];
-      logger.info(client + " " + messageSize + " " + read);
-      read = clientInputStream.read(buffer, 0, messageSize);
-      if (read == messageSize) {
+      byte[] buffer = MessageUtil.getMessageBytes(client);
+      if (buffer != null) {
         Message message = Message.parseFrom(buffer);
         logger.info(client + " " + message.toString());
         if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
           logger.info(client + " Upload request");
-          Message responseMessage = UploadRequestHandler.handleUploadRequest(message);
+          lock.lock();
+          Message responseMessage = UploadRequestHandler.handleUploadRequest(message, localFiles);
+          lock.unlock();
+          OutputStream outputStream = client.getOutputStream();
+          byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
+          outputStream.write(responseMessageSize);
+          outputStream.write(responseMessage.toByteArray());
+          outputStream.close();
+        } else if (message.getType().equals(Message.Type.REPLICATE_REQUEST)) {
+          logger.info(client + " Replicate request");
+          Message responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes);
+          OutputStream outputStream = client.getOutputStream();
+          byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
+          outputStream.write(responseMessageSize);
+          outputStream.write(responseMessage.toByteArray());
+          outputStream.close();
+        } else if (message.getType().equals(Message.Type.CHUNK_REQUEST)) {
+          logger.info(client + " Chunk request");
+          Message responseMessage = ChunkRequestHandler.handleChunkRequest(message);
           OutputStream outputStream = client.getOutputStream();
           byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
           outputStream.write(responseMessageSize);

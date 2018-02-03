@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import node.ChunkInfo;
 
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,7 +14,8 @@ public class ChunkInfoUtil {
 
   private static final Logger logger = Logger.getLogger(ChunkInfoUtil.class.getName());
 
-  public static List<ChunkInfo> getChunkInfos(byte[] bytes, MessageDigest md) {
+  public static List<ChunkInfo> getChunkInfos(byte[] bytes, List<byte[]> fileContent) throws NoSuchAlgorithmException {
+    MessageDigest md = MessageDigest.getInstance("MD5");
     byte[] digest;
     List<ChunkInfo> chunkInfos = new ArrayList<>();
     int blockSize = 1024;
@@ -33,6 +35,7 @@ public class ChunkInfoUtil {
           setSize(blockSize).
           setHash(ByteString.copyFrom(digest)).
           build();
+      fileContent.add(range);
       logger.fine("Chunk " + i + ": " + Arrays.toString(range));
       chunkInfos.add(chunkInfo);
     }
@@ -53,8 +56,9 @@ public class ChunkInfoUtil {
         setSize(end - ((blockCount - 1) * blockSize)).
         setHash(ByteString.copyFrom(digest)).
         build();
-    chunkInfos.add(chunkInfo);
+    fileContent.add(range);
     logger.fine("Chunk " + blockCount + ": " + Arrays.toString(range));
+    chunkInfos.add(chunkInfo);
     return chunkInfos;
   }
 
