@@ -17,7 +17,7 @@ public class MessageUtil {
     ByteBuffer wrapped = ByteBuffer.wrap(size); // big-endian by default
     int messageSize = wrapped.getInt();
     byte[] buffer = new byte[messageSize];
-    logger.info(socket + " " + messageSize + " " + read);
+    logger.fine(socket + " " + messageSize + " " + read);
     read = clientInputStream.read(buffer, 0, messageSize);
     if (read == messageSize) {
       return buffer;

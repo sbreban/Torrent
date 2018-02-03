@@ -60,7 +60,7 @@ public class TorrentNode {
       byte[] buffer = MessageUtil.getMessageBytes(client);
       if (buffer != null) {
         Message message = Message.parseFrom(buffer);
-        logger.info(client + " " + message.toString());
+        logger.fine(client + " " + message.toString());
         if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
           logger.info(client + " Upload request");
           lock.lock();
@@ -83,7 +83,9 @@ public class TorrentNode {
           outputStream.close();
         } else if (message.getType().equals(Message.Type.CHUNK_REQUEST)) {
           logger.info(client + " Chunk request");
-          Message responseMessage = ChunkRequestHandler.handleChunkRequest(message);
+          lock.lock();
+          Message responseMessage = ChunkRequestHandler.handleChunkRequest(message, localFiles);
+          lock.unlock();
           OutputStream outputStream = client.getOutputStream();
           byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
           outputStream.write(responseMessageSize);
