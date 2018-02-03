@@ -95,7 +95,10 @@ public class TorrentNode {
           sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.DOWNLOAD_REQUEST)) {
           logger.info(client + " Download request");
-
+          lock.lock();
+          Message responseMessage = DownloadRequestHandler.handleDownloadRequest(message, localFiles);
+          lock.unlock();
+          sendResponse(client, responseMessage);
         }
       }
     } catch (IOException e) {
