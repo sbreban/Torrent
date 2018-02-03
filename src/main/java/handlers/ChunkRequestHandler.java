@@ -16,32 +16,35 @@ public class ChunkRequestHandler {
   private static final Logger logger = Logger.getLogger(ChunkRequestHandler.class.getName());
 
   public static Message handleChunkRequest(Message message, Map<ByteString, List<byte[]>> localFiles) {
-    Message responseMessage = null;
+    ChunkResponse.Builder builder = ChunkResponse.newBuilder();
     try {
       ChunkRequest chunkRequest = message.getChunkRequest();
       ByteString fileHash = chunkRequest.getFileHash();
       int chunkIndex = chunkRequest.getChunkIndex();
-      List<byte[]> fileContent = localFiles.get(fileHash);
-      ChunkResponse chunkResponse;
-      if (fileContent != null) {
-        byte[] chunk = fileContent.get(chunkIndex);
-        chunkResponse = ChunkResponse.newBuilder().
-            setStatus(Status.SUCCESS).
-            setData(ByteString.copyFrom(chunk)).
-            build();
+
+      if (fileHash.toByteArray().length != 16 || chunkIndex < 0) {
+        logger.severe("Invalid file hash or chunk index");
+        builder.setStatus(Status.MESSAGE_ERROR);
       } else {
-        chunkResponse = ChunkResponse.newBuilder().
-            setStatus(Status.UNABLE_TO_COMPLETE).
-            build();
+        List<byte[]> fileContent = localFiles.get(fileHash);
+        if (fileContent != null && fileContent.size() > 0) {
+          byte[] chunk = fileContent.get(chunkIndex);
+          builder.setStatus(Status.SUCCESS).
+              setData(ByteString.copyFrom(chunk));
+        } else {
+          builder.setStatus(Status.UNABLE_TO_COMPLETE);
+        }
       }
-      responseMessage = Message.newBuilder().
-          setType(Message.Type.CHUNK_RESPONSE).
-          setChunkResponse(chunkResponse).
-          build();
+
     } catch (Exception e) {
       logger.log(Level.SEVERE, e.getMessage());
+      builder.setStatus(Status.PROCESSING_ERROR);
     }
-    return responseMessage;
+
+    return Message.newBuilder().
+        setType(Message.Type.CHUNK_RESPONSE).
+        setChunkResponse(builder.build()).
+        build();
   }
 
 }

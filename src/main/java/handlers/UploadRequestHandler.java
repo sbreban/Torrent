@@ -17,42 +17,51 @@ public class UploadRequestHandler {
   private static final Logger logger = Logger.getLogger(UploadRequestHandler.class.getName());
 
   public static Message handleUploadRequest(Message message, Map<ByteString, List<byte[]>> localFiles, Map<String, ByteString> fileNameToHash) {
-    Message responseMessage = null;
-    try {
-      UploadRequest uploadRequest = message.getUploadRequest();
-      String fileName = uploadRequest.getFilename();
-      ByteString data = uploadRequest.getData();
-      byte[] bytes = data.toByteArray();
+    UploadResponse.Builder builder = UploadResponse.newBuilder();
 
-      MessageDigest md = MessageDigest.getInstance("MD5");
-      byte[] digest;
-      md.update(bytes);
-      digest = md.digest();
-      List<byte[]> fileContent = new LinkedList<>();
-      localFiles.put(ByteString.copyFrom(digest), fileContent);
-      fileNameToHash.put(fileName, ByteString.copyFrom(digest));
+    UploadRequest uploadRequest = message.getUploadRequest();
+    String fileName = uploadRequest.getFilename();
 
-      List<ChunkInfo> chunkInfos = ChunkInfoUtil.getChunkInfos(bytes, fileContent);
-      Status status = Status.SUCCESS;
+    if (fileName == null || fileName.isEmpty()) {
+      logger.severe("Filename is empty");
+      builder.setStatus(Status.MESSAGE_ERROR);
+    } else if (fileNameToHash.containsKey(fileName)) {
+      logger.fine("Already have the file");
+      builder.setStatus(Status.SUCCESS);
+    } else {
+      try {
 
-      FileInfo fileInfo = FileInfo.newBuilder().
-          setHash(ByteString.copyFrom(digest)).
-          setSize(data.size()).
-          setFilename(fileName).
-          addAllChunks(chunkInfos).
-          build();
-      UploadResponse uploadResponse = UploadResponse.newBuilder().
-          setStatus(status).
-          setFileInfo(fileInfo).
-          build();
-      responseMessage = Message.newBuilder().
-          setType(Message.Type.UPLOAD_RESPONSE).
-          setUploadResponse(uploadResponse).
-          build();
-    } catch (NoSuchAlgorithmException e) {
-      logger.log(Level.SEVERE, e.getMessage());
+        ByteString data = uploadRequest.getData();
+        byte[] bytes = data.toByteArray();
+
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        byte[] digest;
+        md.update(bytes);
+        digest = md.digest();
+        List<byte[]> fileContent = new LinkedList<>();
+        localFiles.put(ByteString.copyFrom(digest), fileContent);
+        fileNameToHash.put(fileName, ByteString.copyFrom(digest));
+
+        List<ChunkInfo> chunkInfos = ChunkInfoUtil.getChunkInfos(bytes, fileContent);
+
+        FileInfo fileInfo = FileInfo.newBuilder().
+            setHash(ByteString.copyFrom(digest)).
+            setSize(data.size()).
+            setFilename(fileName).
+            addAllChunks(chunkInfos).
+            build();
+
+        builder.setStatus(Status.SUCCESS);
+        builder.setFileInfo(fileInfo);
+      } catch (NoSuchAlgorithmException e) {
+        logger.log(Level.SEVERE, e.getMessage());
+      }
     }
-    return responseMessage;
+
+    return Message.newBuilder().
+        setType(Message.Type.UPLOAD_RESPONSE).
+        setUploadResponse(builder.build()).
+        build();
   }
 
 }

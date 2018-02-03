@@ -63,3 +63,4 @@ buildNumber.properties
 !/.mvn/wrapper/maven-wrapper.jar
 
 *.log
+*.log.lck

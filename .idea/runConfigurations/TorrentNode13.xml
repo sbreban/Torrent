@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="TorrentNode" type="Application" factoryName="Application" nameIsGenerated="true">
+  <configuration default="false" name="TorrentNode13" type="Application" factoryName="Application">
     <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea">
       <pattern>
         <option name="PATTERN" value="node.*" />
@@ -8,7 +8,7 @@
     </extension>
     <option name="MAIN_CLASS_NAME" value="node.TorrentNode" />
     <option name="VM_PARAMETERS" value="-Djava.util.logging.config.file=logging.properties" />
-    <option name="PROGRAM_PARAMETERS" value="1:4" />
+    <option name="PROGRAM_PARAMETERS" value="1:3" />
     <option name="WORKING_DIRECTORY" value="" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
     <option name="ALTERNATIVE_JRE_PATH" />
