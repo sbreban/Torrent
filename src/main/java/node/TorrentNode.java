@@ -35,6 +35,7 @@ public class TorrentNode {
 
   private List<NodeConfiguration> otherNodes;
   private Map<ByteString, List<byte[]>> localFiles;
+  private Map<String, ByteString> fileNameToHash;
 
   private ExecutorService executor = Executors.newFixedThreadPool(5);
   private ReentrantLock lock = new ReentrantLock();
@@ -43,6 +44,7 @@ public class TorrentNode {
     this.server = new ServerSocket(nodeConfiguration.getPort(), 1, InetAddress.getByName(nodeConfiguration.getAddr()));
     this.otherNodes = otherNodes;
     this.localFiles = new HashMap<>();
+    this.fileNameToHash = new HashMap<>();
   }
 
   private void listen() throws Exception {
@@ -61,36 +63,33 @@ public class TorrentNode {
       if (buffer != null) {
         Message message = Message.parseFrom(buffer);
         logger.fine(client + " " + message.toString());
-        if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
+        if (message.getType().equals(Message.Type.LOCAL_SEARCH_REQUEST)) {
+          logger.info(client + " Local search request");
+
+        } if (message.getType().equals(Message.Type.SEARCH_REQUEST)) {
+          logger.info(client + " Search request");
+
+        } else if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
           logger.info(client + " Upload request");
           lock.lock();
-          Message responseMessage = UploadRequestHandler.handleUploadRequest(message, localFiles);
+          Message responseMessage = UploadRequestHandler.handleUploadRequest(message, localFiles, fileNameToHash);
           lock.unlock();
-          OutputStream outputStream = client.getOutputStream();
-          byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
-          outputStream.write(responseMessageSize);
-          outputStream.write(responseMessage.toByteArray());
-          outputStream.close();
+          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.REPLICATE_REQUEST)) {
           logger.info(client + " Replicate request");
           lock.lock();
-          Message responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes, localFiles);
+          Message responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes, localFiles, fileNameToHash);
           lock.unlock();
-          OutputStream outputStream = client.getOutputStream();
-          byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
-          outputStream.write(responseMessageSize);
-          outputStream.write(responseMessage.toByteArray());
-          outputStream.close();
+          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.CHUNK_REQUEST)) {
           logger.info(client + " Chunk request");
           lock.lock();
           Message responseMessage = ChunkRequestHandler.handleChunkRequest(message, localFiles);
           lock.unlock();
-          OutputStream outputStream = client.getOutputStream();
-          byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
-          outputStream.write(responseMessageSize);
-          outputStream.write(responseMessage.toByteArray());
-          outputStream.close();
+          sendResponse(client, responseMessage);
+        } else if (message.getType().equals(Message.Type.DOWNLOAD_REQUEST)) {
+          logger.info(client + " Download request");
+
         }
       }
     } catch (IOException e) {
@@ -102,6 +101,14 @@ public class TorrentNode {
         logger.log(Level.SEVERE, e.getMessage());
       }
     }
+  }
+
+  private void sendResponse(Socket client, Message responseMessage) throws IOException {
+    OutputStream outputStream = client.getOutputStream();
+    byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
+    outputStream.write(responseMessageSize);
+    outputStream.write(responseMessage.toByteArray());
+    outputStream.close();
   }
 
   public InetAddress getSocketAddress() {

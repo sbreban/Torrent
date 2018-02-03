@@ -16,7 +16,7 @@ public class UploadRequestHandler {
 
   private static final Logger logger = Logger.getLogger(UploadRequestHandler.class.getName());
 
-  public static Message handleUploadRequest(Message message, Map<ByteString, List<byte[]>> localFiles) {
+  public static Message handleUploadRequest(Message message, Map<ByteString, List<byte[]>> localFiles, Map<String, ByteString> fileNameToHash) {
     Message responseMessage = null;
     try {
       UploadRequest uploadRequest = message.getUploadRequest();
@@ -30,6 +30,7 @@ public class UploadRequestHandler {
       digest = md.digest();
       List<byte[]> fileContent = new LinkedList<>();
       localFiles.put(ByteString.copyFrom(digest), fileContent);
+      fileNameToHash.put(fileName, ByteString.copyFrom(digest));
 
       List<ChunkInfo> chunkInfos = ChunkInfoUtil.getChunkInfos(bytes, fileContent);
       Status status = Status.SUCCESS;

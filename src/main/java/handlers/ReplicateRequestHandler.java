@@ -19,7 +19,7 @@ public class ReplicateRequestHandler {
 
   private static final Logger logger = Logger.getLogger(ReplicateRequestHandler.class.getName());
 
-  public static Message handleReplicateRequest(Message message, List<NodeConfiguration> otherNodes, Map<ByteString, List<byte[]>> localFiles) {
+  public static Message handleReplicateRequest(Message message, List<NodeConfiguration> otherNodes, Map<ByteString, List<byte[]>> localFiles, Map<String, ByteString> fileNameToHash) {
     Message responseMessage = null;
     try {
       ReplicateRequest replicateRequest = message.getReplicateRequest();
@@ -51,6 +51,7 @@ public class ReplicateRequestHandler {
               if (chunkResponseMessage.getStatus().equals(Status.SUCCESS)) {
                 List<byte[]> fileContent = localFiles.computeIfAbsent(fileInfo.getHash(), k -> new LinkedList<>());
                 fileContent.add(chunkResponseMessage.getData().toByteArray());
+                fileNameToHash.put(fileInfo.getFilename(), fileInfo.getHash());
                 logger.fine(chunkResponseMessage.toString());
               } else if (chunkResponseMessage.getStatus().equals(Status.UNABLE_TO_COMPLETE)) {
                 nodeIndex++;
