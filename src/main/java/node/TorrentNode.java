@@ -4,11 +4,12 @@ import com.google.protobuf.ByteString;
 import handlers.*;
 import util.MessageUtil;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,75 +50,64 @@ public class TorrentNode {
 
   private void listen() throws Exception {
     while (true) {
-      Socket client = this.server.accept();
-      String clientAddress = client.getInetAddress().getHostAddress();
+      Socket clientSocket = this.server.accept();
+      String clientAddress = clientSocket.getInetAddress().getHostAddress();
       logger.info("New connection from " + clientAddress);
-      executor.submit(() -> handleClient(client));
-
+      executor.submit(() -> handleClient(clientSocket));
     }
   }
 
-  private void handleClient(Socket client) {
+  private void handleClient(Socket clientSocket) {
     try {
-      byte[] buffer = MessageUtil.getMessageBytes(client);
+      byte[] buffer = MessageUtil.getMessageBytes(clientSocket);
       if (buffer != null) {
         Message message = Message.parseFrom(buffer);
-        logger.fine(client + " " + message.toString());
+        Message responseMessage = null;
+        logger.fine(clientSocket + " " + message.toString());
         if (message.getType().equals(Message.Type.LOCAL_SEARCH_REQUEST)) {
-          logger.info(client + " Local search request");
+          logger.info(clientSocket + " Local search request");
           lock.lock();
-          Message responseMessage = LocalSearchRequestHandler.handleLocalSearchRequest(message, localFiles, fileNameToHash);
+          responseMessage = LocalSearchRequestHandler.handleLocalSearchRequest(message, localFiles, fileNameToHash);
           lock.unlock();
-          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.SEARCH_REQUEST)) {
-          logger.info(client + " Search request");
+          logger.info(clientSocket + " Search request");
           lock.lock();
-          Message responseMessage = SearchRequestHandler.handleSearchRequest(message, localNode, otherNodes, localFiles, fileNameToHash);
+          responseMessage = SearchRequestHandler.handleSearchRequest(message, localNode, otherNodes, localFiles, fileNameToHash);
           lock.unlock();
-          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.UPLOAD_REQUEST)) {
-          logger.info(client + " Upload request");
+          logger.info(clientSocket + " Upload request");
           lock.lock();
-          Message responseMessage = UploadRequestHandler.handleUploadRequest(message, localFiles, fileNameToHash);
+          responseMessage = UploadRequestHandler.handleUploadRequest(message, localFiles, fileNameToHash);
           lock.unlock();
-          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.REPLICATE_REQUEST)) {
-          logger.info(client + " Replicate request");
+          logger.info(clientSocket + " Replicate request");
           lock.lock();
-          Message responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes, localFiles, fileNameToHash);
+          responseMessage = ReplicateRequestHandler.handleReplicateRequest(message, otherNodes, localFiles, fileNameToHash);
           lock.unlock();
-          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.CHUNK_REQUEST)) {
-          logger.info(client + " Chunk request");
+          logger.info(clientSocket + " Chunk request");
           lock.lock();
-          Message responseMessage = ChunkRequestHandler.handleChunkRequest(message, localFiles);
+          responseMessage = ChunkRequestHandler.handleChunkRequest(message, localFiles);
           lock.unlock();
-          sendResponse(client, responseMessage);
         } else if (message.getType().equals(Message.Type.DOWNLOAD_REQUEST)) {
-          logger.info(client + " Download request");
+          logger.info(clientSocket + " Download request");
           lock.lock();
-          Message responseMessage = DownloadRequestHandler.handleDownloadRequest(message, localFiles);
+          responseMessage = DownloadRequestHandler.handleDownloadRequest(message, localFiles);
           lock.unlock();
-          sendResponse(client, responseMessage);
+        }
+        if (responseMessage != null) {
+          MessageUtil.sendMessage(clientSocket, responseMessage);
         }
       }
     } catch (IOException e) {
       logger.log(Level.SEVERE, e.getMessage());
     } finally {
       try {
-        client.close();
+        clientSocket.close();
       } catch (IOException e) {
         logger.log(Level.SEVERE, e.getMessage());
       }
     }
-  }
-
-  private void sendResponse(Socket client, Message responseMessage) throws IOException {
-    OutputStream outputStream = client.getOutputStream();
-    byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(responseMessage.toByteArray().length).array();
-    outputStream.write(responseMessageSize);
-    outputStream.write(responseMessage.toByteArray());
-    outputStream.close();
   }
 
   public InetAddress getSocketAddress() {

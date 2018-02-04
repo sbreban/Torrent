@@ -1,7 +1,10 @@
 package util;
 
+import node.Message;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
@@ -23,6 +26,14 @@ public class MessageUtil {
       return buffer;
     }
     return null;
+  }
+
+  public static void sendMessage(Socket socket, Message message) throws IOException {
+    OutputStream outputStream = socket.getOutputStream();
+    byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(message.toByteArray().length).array();
+    outputStream.write(responseMessageSize);
+    outputStream.write(message.toByteArray());
+    outputStream.flush();
   }
 
 }
