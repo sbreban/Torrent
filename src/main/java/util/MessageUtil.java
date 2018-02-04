@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.logging.Logger;
 
 public class MessageUtil {
@@ -30,7 +31,7 @@ public class MessageUtil {
 
   public static void sendMessage(Socket socket, Message message) throws IOException {
     OutputStream outputStream = socket.getOutputStream();
-    byte[] responseMessageSize = ByteBuffer.allocate(4).putInt(message.toByteArray().length).array();
+    byte[] responseMessageSize = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(message.toByteArray().length).array();
     outputStream.write(responseMessageSize);
     outputStream.write(message.toByteArray());
     outputStream.flush();

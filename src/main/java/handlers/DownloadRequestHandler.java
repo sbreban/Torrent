@@ -9,7 +9,6 @@ import node.Status;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DownloadRequestHandler {
@@ -17,18 +16,16 @@ public class DownloadRequestHandler {
   private static final Logger logger = Logger.getLogger(DownloadRequestHandler.class.getName());
 
   public static Message handleDownloadRequest(Message message, Map<ByteString, List<byte[]>> localFiles) {
-    Message responseMessage = null;
-    try {
-      Status downloadResponseStatus = Status.SUCCESS;
+    DownloadResponse.Builder builder = DownloadResponse.newBuilder();
 
-      DownloadRequest downloadRequest = message.getDownloadRequest();
-      ByteString fileHash = downloadRequest.getFileHash();
-      if (fileHash.toByteArray().length != 16) {
-        logger.severe("Invalid file hash");
-      }
+    DownloadRequest downloadRequest = message.getDownloadRequest();
+    ByteString fileHash = downloadRequest.getFileHash();
+    if (fileHash.toByteArray().length != 16) {
+      logger.severe("Invalid file hash");
+      builder.setStatus(Status.MESSAGE_ERROR);
+    } else {
       List<ByteString> dataList = new LinkedList<>();
 
-      DownloadResponse downloadResponse;
       List<byte[]> fileContent = localFiles.get(fileHash);
       if (fileContent != null && fileContent.size() > 0) {
         for (int i = 0; i < fileContent.size(); i++) {
@@ -36,25 +33,17 @@ public class DownloadRequestHandler {
           ByteString data = ByteString.copyFrom(content);
           dataList.add(data);
         }
-        downloadResponse = DownloadResponse.newBuilder().
-            setStatus(downloadResponseStatus).
-            setData(ByteString.copyFrom(dataList)).
-            build();
+        builder.setStatus(Status.SUCCESS).
+            setData(ByteString.copyFrom(dataList));
       } else {
-        downloadResponseStatus = Status.UNABLE_TO_COMPLETE;
-        downloadResponse = DownloadResponse.newBuilder().
-            setStatus(downloadResponseStatus).
-            build();
+        builder.setStatus(Status.UNABLE_TO_COMPLETE);
       }
-
-      responseMessage = Message.newBuilder().
-          setType(Message.Type.DOWNLOAD_RESPONSE).
-          setDownloadResponse(downloadResponse).
-          build();
-    } catch (Exception e) {
-      logger.log(Level.SEVERE, e.getMessage());
     }
-    return responseMessage;
+
+    return Message.newBuilder().
+        setType(Message.Type.DOWNLOAD_RESPONSE).
+        setDownloadResponse(builder.build()).
+        build();
   }
 
 }

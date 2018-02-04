@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import node.*;
 import util.ChunkInfoUtil;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,12 +31,18 @@ public class LocalSearchRequestHandler {
         for (String foundFileName : foundFileNames) {
           ByteString fileHash = fileNameToHash.get(foundFileName);
           List<byte[]> fileContent = localFiles.get(fileHash);
+
+          int fileSize = 0;
+          for (byte[] bytes : fileContent) {
+            fileSize += bytes.length;
+          }
+
           List<ChunkInfo> chunkInfos = ChunkInfoUtil.getChunkInfos(fileContent);
           logger.fine(chunkInfos.toString());
 
           FileInfo fileInfo = FileInfo.newBuilder().
               setHash(fileHash).
-              setSize(chunkInfos.size()).
+              setSize(fileSize).
               setFilename(foundFileName).
               addAllChunks(chunkInfos).
               build();
@@ -52,7 +59,7 @@ public class LocalSearchRequestHandler {
           setType(Message.Type.LOCAL_SEARCH_RESPONSE).
           setLocalSearchResponse(localSearchResponse).
           build();
-    } catch (Exception e) {
+    } catch (NoSuchAlgorithmException e) {
       logger.log(Level.SEVERE, e.getMessage());
     }
     return responseMessage;
