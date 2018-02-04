@@ -2,9 +2,7 @@ package util;
 
 import node.Message;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -16,7 +14,7 @@ public class MessageUtil {
 
   public static byte[] getMessageBytes(Socket socket) throws IOException {
     byte[] size = new byte[4];
-    InputStream clientInputStream = socket.getInputStream();
+    InputStream clientInputStream = new BufferedInputStream(socket.getInputStream());
     int read = clientInputStream.read(size, 0, 4);
     ByteBuffer wrapped = ByteBuffer.wrap(size); // big-endian by default
     int messageSize = wrapped.getInt();
@@ -30,7 +28,7 @@ public class MessageUtil {
   }
 
   public static void sendMessage(Socket socket, Message message) throws IOException {
-    OutputStream outputStream = socket.getOutputStream();
+    OutputStream outputStream = new BufferedOutputStream(socket.getOutputStream());
     byte[] responseMessageSize = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(message.toByteArray().length).array();
     outputStream.write(responseMessageSize);
     outputStream.write(message.toByteArray());
