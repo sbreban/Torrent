@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ReplicateRequestHandler {
@@ -107,9 +108,9 @@ public class ReplicateRequestHandler {
       }
     } catch (IOException e) {
       builder.setStatus(Status.UNABLE_TO_COMPLETE);
-      logger.severe(e.getMessage());
+      logger.log(Level.SEVERE, e.getMessage(), e);
     } catch (NoSuchAlgorithmException e) {
-      logger.severe(e.getMessage());
+      logger.log(Level.SEVERE, e.getMessage(), e);
     }
 
     if (builder.getNodeStatusListBuilderList().size() != replicateRequest.getFileInfo().getChunksList().size()) {

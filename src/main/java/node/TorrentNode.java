@@ -42,7 +42,7 @@ public class TorrentNode {
 
   public TorrentNode(NodeConfiguration nodeConfiguration, List<NodeConfiguration> otherNodes) throws Exception {
     this.localNode = nodeConfiguration;
-    this.server = new ServerSocket(nodeConfiguration.getPort(), 1, InetAddress.getByName(nodeConfiguration.getAddr()));
+    this.server = new ServerSocket(nodeConfiguration.getPort(), 100, InetAddress.getByName(nodeConfiguration.getAddr()));
     this.otherNodes = otherNodes;
     this.localFiles = new HashMap<>();
     this.fileNameToHash = new HashMap<>();
@@ -50,14 +50,15 @@ public class TorrentNode {
 
   private void listen() throws Exception {
     while (true) {
+      logger.info("Waiting for connection");
       Socket clientSocket = this.server.accept();
-      String clientAddress = clientSocket.getInetAddress().getHostAddress();
-      logger.info("New connection from " + clientAddress);
       executor.submit(() -> handleClient(clientSocket));
     }
   }
 
   private void handleClient(Socket clientSocket) {
+    String clientAddress = clientSocket.getInetAddress().getHostAddress();
+    logger.info("New connection from " + clientAddress);
     try {
       byte[] buffer = MessageUtil.getMessageBytes(clientSocket);
       if (buffer != null) {

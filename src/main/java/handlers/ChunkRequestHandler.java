@@ -6,6 +6,7 @@ import node.ChunkResponse;
 import node.Message;
 import node.Status;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -17,7 +18,7 @@ public class ChunkRequestHandler {
 
   public static Message handleChunkRequest(Message message, Map<ByteString, List<byte[]>> localFiles) {
     ChunkResponse.Builder builder = ChunkResponse.newBuilder();
-    try {
+
       ChunkRequest chunkRequest = message.getChunkRequest();
       ByteString fileHash = chunkRequest.getFileHash();
       int chunkIndex = chunkRequest.getChunkIndex();
@@ -31,15 +32,12 @@ public class ChunkRequestHandler {
           byte[] chunk = fileContent.get(chunkIndex);
           builder.setStatus(Status.SUCCESS).
               setData(ByteString.copyFrom(chunk));
+          logger.fine("SUCCESS " + fileHash + " " + chunkIndex);
         } else {
+          logger.fine("FAILURE " + fileHash + " " + chunkIndex);
           builder.setStatus(Status.UNABLE_TO_COMPLETE);
         }
       }
-
-    } catch (Exception e) {
-      logger.log(Level.SEVERE, e.getMessage());
-      builder.setStatus(Status.PROCESSING_ERROR);
-    }
 
     return Message.newBuilder().
         setType(Message.Type.CHUNK_RESPONSE).
